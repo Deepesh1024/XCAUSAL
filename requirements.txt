@@ -15,7 +15,7 @@ scipy>=1.11.0
 rapidfuzz>=3.0.0
 
 # Deep Learning (BGE-M3)
-torch>=2.1.0
+torch>=2.1.1
 transformers>=4.36.0
 sentence-transformers>=2.2.0
 accelerate>=0.24.0
