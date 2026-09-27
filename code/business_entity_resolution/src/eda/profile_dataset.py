@@ -249,12 +249,14 @@ class DatasetProfiler:
         # Take a 10k sample of S1 to test blocking against S2
         sample_s1 = self.s1.sample(min(10000, len(self.s1)), random_state=42).copy()
         
-        # We need the true matches for this sample to compute recall
+        sample_s1_ids = set(sample_s1['entity_id'])
+        gt_sample = self.gt[self.gt['source1_entity_id'].isin(sample_s1_ids)]
+        
         gt_dict = {}
-        for _, row in self.gt.iterrows():
-            if row['source1_entity_id'] in sample_s1['entity_id'].values:
-                matches = set(m for m in str(row['matched_entity_ids']).split(',') if m.startswith('S2'))
-                gt_dict[row['source1_entity_id']] = matches
+        for row in gt_sample.itertuples():
+            matches = set(m for m in str(row.matched_entity_ids).split(',') if m.startswith('S2'))
+            if matches:
+                gt_dict[row.source1_entity_id] = matches
                 
         total_gt_pairs = sum(len(v) for v in gt_dict.values())
         
