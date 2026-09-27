@@ -1,2 +1,31 @@
 code/
 .DS_Store
+
+# ---- anushka-pipeline: never commit data, models, caches or outputs ----
+# the submission code lives under code/ (the rule above ignored it)
+!code/
+dataset/
+output/
+models/
+cache/
+embeddings/
+*.tsv
+*.csv
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.log
+*.zip
+lgb_model.txt
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

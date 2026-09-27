@@ -1,0 +1,6 @@
+# Python 3.12 (tested 3.12.3). All CPU-only; no pretrained models are used.
+pandas==2.2.1
+numpy==1.26.4
+rapidfuzz==3.14.3
+lightgbm==4.7.0
+anyascii==0.3.3
