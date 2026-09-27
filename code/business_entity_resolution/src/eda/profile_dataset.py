@@ -164,25 +164,11 @@ class DatasetProfiler:
     def profile_gt_cardinality(self):
         logging.info("Profiling ground-truth cardinality...")
         
-        # parse matched ids
-        s1_to_matches = {}
-        s2_matches = []
-        s3_matches = []
-        total_matches = []
-        
-        for _, row in self.gt.iterrows():
-            s1_id = row['source1_entity_id']
-            matches = str(row['matched_entity_ids']).split(',')
-            matches = [m for m in matches if m]
-            
-            c_s2 = sum(1 for m in matches if str(m).startswith('S2'))
-            c_s3 = sum(1 for m in matches if str(m).startswith('S3'))
-            
-            s2_matches.append(c_s2)
-            s3_matches.append(c_s3)
-            total_matches.append(len(matches))
-            
-        tm = np.array(total_matches)
+        # Vectorized string counting for massive speedup
+        matches_series = self.gt['matched_entity_ids'].fillna('').astype(str)
+        c_s2 = matches_series.str.count('S2-').values
+        c_s3 = matches_series.str.count('S3-').values
+        tm = c_s2 + c_s3
         
         self.report['gt_cardinality'] = {
             'pct_zero_match': float(np.mean(tm == 0) * 100),
@@ -191,9 +177,9 @@ class DatasetProfiler:
             'mean_matches': float(np.mean(tm)),
             'median_matches': float(np.median(tm)),
             'p95_matches': float(np.percentile(tm, 95)),
-            'pct_s2_only': float(np.mean((np.array(s2_matches) > 0) & (np.array(s3_matches) == 0)) * 100),
-            'pct_s3_only': float(np.mean((np.array(s3_matches) > 0) & (np.array(s2_matches) == 0)) * 100),
-            'pct_both_s2_s3': float(np.mean((np.array(s2_matches) > 0) & (np.array(s3_matches) > 0)) * 100)
+            'pct_s2_only': float(np.mean((c_s2 > 0) & (c_s3 == 0)) * 100),
+            'pct_s3_only': float(np.mean((c_s3 > 0) & (c_s2 == 0)) * 100),
+            'pct_both_s2_s3': float(np.mean((c_s2 > 0) & (c_s3 > 0)) * 100)
         }
 
     def profile_gt_difficulty(self):
@@ -205,12 +191,12 @@ class DatasetProfiler:
         
         pairs = []
         count = 0
-        for _, row in self.gt.iterrows():
-            s1_id = row['source1_entity_id']
+        for row in self.gt.itertuples():
+            s1_id = row.source1_entity_id
             if s1_id not in s1_dict: continue
             
             r1 = s1_dict[s1_id]
-            matches = str(row['matched_entity_ids']).split(',')
+            matches = str(row.matched_entity_ids).split(',')
             for m in matches:
                 if not m: continue
                 r2 = None
