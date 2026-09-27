@@ -65,16 +65,24 @@ output isn't overwritten:**
 python code/business_entity_resolution/src/run.py --sample 150000 --mode full --out-dir output_full 2>&1 | tee run_full.log
 ```
 
-**Expected runtime and RAM.** These are estimates scaled from sample runs on a 12-core laptop.
-The full test set has about 1.7M S1 and 10M S2+S3 records.
+**Measured on a 12-core laptop (full mode)**, on a partial test set (about half the real S1 and
+about 18% of the real S2/S3):
 
-| stage | fast | full |
+| country (partial) | S1 / S2+S3 | normalize | blocking | features | candidates/S1 |
+|---|---|---|---|---|---|
+| France | 135k / 256k | 13 s | 35 s | 70 s | 22.6 |
+| India | 423k / 844k | 30 s | 164 s | ~3–4 min | 22.8 |
+
+**Expected on the full test set** (about 1.7M S1 and 10M S2+S3). These are extrapolated estimates;
+blocking grows faster than linearly with S2/S3 size:
+
+| | fast | full |
 |---|---|---|
-| load + sample + train/validate | ~5 min | ~8 min |
-| test: normalize (~12M records, multiprocess) | ~10 min | ~10 min |
-| test: blocking + features + predict | ~10–15 min | ~20–35 min |
-| **total** | **~25–30 min** | **~40–55 min** |
-| peak RAM | ~16 GB | ~24–32 GB |
+| train/validate (100k–150k sample) | ~5 min | ~8 min |
+| test total | ~25–40 min | ~45–75 min |
+| peak RAM (blocking is chunked over S1) | ~16 GB | ~24–32 GB |
+
+**If it's after ~23:00 IST, run only `--mode fast`.**
 
 Test data is processed one country at a time, so peak RAM is driven by the largest country
 (India). If RAM runs out, lower `--workers` (normalization copies chunks to worker
