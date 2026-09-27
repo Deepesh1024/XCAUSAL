@@ -17,6 +17,9 @@ RE_NULL = re.compile(r"<\s*null\s*>|\bnull\b|\bn/a\b|\bnan\b")
 RE_ORD = re.compile(r"\b(\d+)(st|nd|rd|th)\b")
 RE_NONALNUM = re.compile(r"[^a-z0-9]+")
 RE_NUM = re.compile(r"\d+")
+RE_NUMERO = re.compile(r"\b[nN]\s*[°º]")
+# French "St-Nazaire" / "Ste-Foy" = Saint(e), not Street
+RE_SAINT = re.compile(r"\b(st|ste)\s*\.?\s*-\s*(?=[^\W\d_])", re.IGNORECASE)
 RE_DIGIT_ALPHA = re.compile(r"(\d)([a-z])|([a-z])(\d)")
 
 # ---------------------------------------------------------------- names
@@ -63,6 +66,7 @@ ADDR_ABBR = {
     "bis": "bis", "zi": "zone industrielle", "za": "zone activite", "zac": "zone activite",
 }
 ADDR_STOP = {"number", "near", "opposite", "city", "the", "of", "and", "floor", "suite",
+             "etage", "appartement", "appt", "batiment", "bat", "cedex", "bp", "cs", "lieu", "dit",
              "building", "apartment", "district", "post", "de", "du", "des", "la", "le", "les", "d", "l"}
 
 US_STATES = {
@@ -119,6 +123,8 @@ def base_clean(s):
     """Transliterate, lowercase, strip URLs/nulls/junk; returns space-joined tokens."""
     if not s:
         return ""
+    s = RE_NUMERO.sub(" no ", s)  # "N° 51" / "Nº 24" (anyascii would give "ndeg")
+    s = s.replace("°", " ").replace("º", " ")
     s = anyascii(s).lower().replace("?", "")
     s = RE_URL.sub(" ", s)
     s = RE_DOMAIN_TLD.sub(" ", s)
@@ -178,13 +184,15 @@ def core_name(name_norm):
 
 
 def norm_addr(raw):
-    s = base_clean(raw)
+    s = RE_SAINT.sub(lambda m: "saint " if m.group(1).lower() == "st" else "sainte ", raw or "")
+    s = base_clean(s)
     s = STATE_RE.sub(lambda m: STATES[m.group(1)], s)
     s = RE_DIGIT_ALPHA.sub(lambda m: (m.group(1) or m.group(3)) + " " + (m.group(2) or m.group(4)), s)
     toks = []
     for t in s.split():
         toks.extend(ADDR_ABBR.get(t, t).split())
     toks = words_to_numbers(toks)
+    toks = [str(int(t)) if t.isdigit() and len(t) < 12 else t for t in toks]  # "021" -> "21"
     return " ".join(toks)
 
 
