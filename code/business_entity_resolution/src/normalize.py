@@ -5,11 +5,10 @@ Runs on CPU with multiprocessing.
 import re
 import unicodedata
 import logging
+import time
 from typing import Optional
 import pandas as pd
 import numpy as np
-from multiprocessing import Pool
-from functools import partial
 
 from . import config
 
@@ -136,75 +135,90 @@ def tokenize(text: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Per-row normalization (applied to each DataFrame row)
+# Vectorized normalization (NO apply/iterrows — uses pandas .str ops)
 # ---------------------------------------------------------------------------
 
-def _normalize_row(row) -> dict:
-    """Normalize a single row dict. Returns new fields to add."""
-    name = row.get("business_name", "") or ""
-    addr = row.get("business_address", "") or ""
-    country = row.get("country", "") or ""
-
-    norm_name     = normalize_name(name)
-    norm_name_suf = strip_legal_suffixes(norm_name)
-    norm_addr     = normalize_address(addr)
-    addr_alnum    = address_alnum(addr)
-    name_basic    = normalize_basic(name)
-    addr_basic    = normalize_basic(addr)
-
-    nums_name     = extract_numbers(norm_name)
-    nums_addr     = extract_numbers(norm_addr)
-    postals       = extract_postal_codes(addr)
-
-    legal_suf     = extract_legal_suffix(name_basic)
-    country_norm  = normalize_basic(country)
-
-    return {
-        "norm_name":        norm_name,
-        "norm_name_stripped": norm_name_suf,
-        "norm_addr":        norm_addr,
-        "addr_alnum":       addr_alnum,
-        "name_basic":       name_basic,
-        "addr_basic":       addr_basic,
-        "name_numbers":     ",".join(nums_name),
-        "addr_numbers":     ",".join(nums_addr),
-        "postal_codes":     ",".join(postals),
-        "legal_suffix":     legal_suf,
-        "country_norm":     country_norm,
-        "name_missing":     int(name == ""),
-        "addr_missing":     int(addr == ""),
-    }
+def _vec_normalize_basic(series: pd.Series) -> pd.Series:
+    """Vectorized lowercase + NFKC + whitespace collapse."""
+    s = series.fillna("").astype(str)
+    # Python's str.lower + unicode normalize via str accessor
+    s = s.str.lower().str.strip()
+    s = s.str.normalize("NFKC")
+    s = s.str.replace(r"\s+", " ", regex=True)
+    return s
 
 
-def _worker_normalize(rows_chunk):
-    """Normalize a chunk of rows (each row is a dict)."""
-    return [_normalize_row(r) for r in rows_chunk]
+def _vec_strip_legal(series: pd.Series) -> pd.Series:
+    """Vectorized removal of legal suffixes."""
+    pat = r"\b(" + "|".join(re.escape(s) for s in config.LEGAL_SUFFIXES) + r")\b"
+    result = series.str.replace(pat, " ", regex=True, case=False)
+    return result.str.replace(r"\s+", " ", regex=True).str.strip()
+
+
+def _vec_normalize_name(series: pd.Series) -> pd.Series:
+    """Vectorized name normalization."""
+    s = _vec_normalize_basic(series)
+    s = s.str.replace(r"[^\w\s\-]", " ", regex=True)
+    return s.str.replace(r"\s+", " ", regex=True).str.strip()
+
+
+def _vec_normalize_addr(series: pd.Series) -> pd.Series:
+    """Vectorized address normalization with abbreviation expansion."""
+    s = _vec_normalize_basic(series)
+    for word, abbrev in config.ADDR_ABBREVS.items():
+        s = s.str.replace(r"\b" + re.escape(word) + r"\b", abbrev, regex=True)
+    s = s.str.replace(r"[^\w\s,\.\-]", " ", regex=True)
+    return s.str.replace(r"\s+", " ", regex=True).str.strip()
+
+
+def _vec_extract_numbers(series: pd.Series) -> pd.Series:
+    """Extract comma-joined numeric sequences from each cell."""
+    return series.str.findall(r"\d+").apply(
+        lambda x: ",".join(x) if isinstance(x, list) else ""
+    )
+
+
+def _vec_extract_postal(series: pd.Series) -> pd.Series:
+    """Extract comma-joined 5-6 digit postal codes."""
+    return series.str.findall(r"\b\d{5,6}\b").apply(
+        lambda x: ",".join(x) if isinstance(x, list) else ""
+    )
+
+
+def _vec_extract_legal_suffix(series: pd.Series) -> pd.Series:
+    """Extract first legal suffix per name."""
+    pat = r"\b(" + "|".join(re.escape(s) for s in config.LEGAL_SUFFIXES) + r")\b"
+    return series.str.extract(pat, flags=re.IGNORECASE, expand=False).fillna("")
 
 
 def normalize_dataframe(df: pd.DataFrame, n_workers: int = None) -> pd.DataFrame:
     """
-    Vectorized normalization of a full DataFrame.
-    Returns df with extra normalized columns.
+    Fully vectorized normalization using pandas .str operations.
+    No apply(), no iterrows(), no Python row loops.
     """
-    if n_workers is None:
-        n_workers = config.NUM_WORKERS
+    log.info(f"  Normalizing {len(df):,} records (vectorized)...")
+    t0 = time.time()
 
-    log.info(f"  Normalizing {len(df):,} records with {n_workers} workers...")
+    out = df.copy()
+    name_raw = out["business_name"].fillna("").astype(str)
+    addr_raw = out["business_address"].fillna("").astype(str)
+    ctr_raw  = out["country"].fillna("").astype(str)
 
-    rows = df[["business_name", "business_address", "country"]].to_dict("records")
+    out["norm_name"]          = _vec_normalize_name(name_raw)
+    out["norm_name_stripped"] = _vec_strip_legal(out["norm_name"])
+    out["norm_addr"]          = _vec_normalize_addr(addr_raw)
+    out["addr_alnum"]         = out["norm_addr"].str.replace(r"[^\w\s]", " ", regex=True).str.strip()
+    out["name_basic"]         = _vec_normalize_basic(name_raw)
+    out["addr_basic"]         = _vec_normalize_basic(addr_raw)
+    out["name_numbers"]       = _vec_extract_numbers(out["norm_name"])
+    out["addr_numbers"]       = _vec_extract_numbers(out["norm_addr"])
+    out["postal_codes"]       = _vec_extract_postal(addr_raw)
+    out["legal_suffix"]       = _vec_extract_legal_suffix(name_raw)
+    out["country_norm"]       = _vec_normalize_basic(ctr_raw)
+    out["name_missing"]       = (name_raw == "").astype(np.int8)
+    out["addr_missing"]       = (addr_raw == "").astype(np.int8)
 
-    chunk_size = max(1, len(rows) // (n_workers * 4))
-    chunks = [rows[i:i+chunk_size] for i in range(0, len(rows), chunk_size)]
-
-    if n_workers > 1:
-        with Pool(n_workers) as pool:
-            results = pool.map(_worker_normalize, chunks)
-    else:
-        results = [_worker_normalize(c) for c in chunks]
-
-    flat = [item for sub in results for item in sub]
-    norm_df = pd.DataFrame(flat, index=df.index)
-
-    out = pd.concat([df, norm_df], axis=1)
-    log.info(f"  Normalization done: {len(out):,} rows")
+    elapsed = time.time() - t0
+    rps = len(df) / elapsed if elapsed > 0 else 0
+    log.info(f"  Normalization done: {len(out):,} rows in {elapsed:.2f}s ({rps:,.0f} rows/sec)")
     return out
