@@ -5,6 +5,12 @@ import re
 import time
 import logging
 from collections import Counter, defaultdict
+try:
+    import cudf.pandas
+    cudf.pandas.install()
+except ImportError:
+    pass
+
 import pandas as pd
 import numpy as np
 
@@ -323,7 +329,7 @@ class DatasetProfiler:
                 for k2, v2 in v.items():
                     if k2 != 'common_tokens':
                         f.write(f"- {k2}: {v2:.2f}\n")
-                f.write("- Common tokens: " + ", ".join([f"{tk}({c})" for tk, c in v.get('common_tokens', {}).items()[:5]]) + "\n")
+                f.write("- Common tokens: " + ", ".join([f"{tk}({c})" for tk, c in list(v.get('common_tokens', {}).items())[:5]]) + "\n")
                         
             f.write("\n## 4. Address Characteristics\n")
             for k, v in self.report.get('address_characteristics', {}).items():
@@ -331,7 +337,7 @@ class DatasetProfiler:
                 for k2, v2 in v.items():
                     if k2 != 'common_tokens':
                         f.write(f"- {k2}: {v2:.2f}\n")
-                f.write("- Common tokens: " + ", ".join([f"{tk}({c})" for tk, c in v.get('common_tokens', {}).items()[:5]]) + "\n")
+                f.write("- Common tokens: " + ", ".join([f"{tk}({c})" for tk, c in list(v.get('common_tokens', {}).items())[:5]]) + "\n")
                         
             f.write("\n## 5. Ground Truth Cardinality\n")
             for k, v in self.report.get('gt_cardinality', {}).items():
