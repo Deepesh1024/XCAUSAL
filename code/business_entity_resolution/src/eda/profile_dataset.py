@@ -184,14 +184,25 @@ class DatasetProfiler:
 
     def profile_gt_difficulty(self):
         logging.info("Profiling GT difficulty...")
-        # Sample S1-S2 positive pairs
-        s1_dict = self.s1.set_index('entity_id').to_dict('index')
-        s2_dict = self.s2.set_index('entity_id').to_dict('index')
-        s3_dict = self.s3.set_index('entity_id').to_dict('index')
+        # Sample GT first to avoid converting 12M rows to dicts!
+        gt_sample = self.gt.sample(min(10000, len(self.gt)), random_state=42)
+        
+        s1_ids = set(gt_sample['source1_entity_id'])
+        s2_ids = set()
+        s3_ids = set()
+        
+        for row in gt_sample.itertuples():
+            for m in str(row.matched_entity_ids).split(','):
+                if m.startswith('S2'): s2_ids.add(m)
+                elif m.startswith('S3'): s3_ids.add(m)
+                
+        s1_dict = self.s1[self.s1['entity_id'].isin(s1_ids)].set_index('entity_id').to_dict('index')
+        s2_dict = self.s2[self.s2['entity_id'].isin(s2_ids)].set_index('entity_id').to_dict('index')
+        s3_dict = self.s3[self.s3['entity_id'].isin(s3_ids)].set_index('entity_id').to_dict('index')
         
         pairs = []
         count = 0
-        for row in self.gt.itertuples():
+        for row in gt_sample.itertuples():
             s1_id = row.source1_entity_id
             if s1_id not in s1_dict: continue
             
