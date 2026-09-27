@@ -64,14 +64,15 @@ ADDR_ABBREVS = {
 # ---------------------------------------------------------------------------
 # Candidate generation
 # ---------------------------------------------------------------------------
-CANDIDATE_K              = 50     # max candidates per S1
+CANDIDATE_K              = 30     # max candidates per S1 (EDA: p95 matches=6, mean=3.46)
+COUNTRY_PARTITION        = True   # build separate indexes per country (halves search space)
 RARE_TOKEN_MAX_DF        = 0.01   # tokens appearing in > 1% docs are "common"
-RARE_TOKEN_TOP_K         = 30     # top K rare tokens per name used for lookup
+RARE_TOKEN_TOP_K         = 20     # top K rare tokens per name
 
 TFIDF_MAX_FEATURES       = 2_000_000
 TFIDF_NGRAM_RANGE        = (3, 5)
 TFIDF_MIN_DF             = 2
-TFIDF_BATCH_SIZE         = 10_000  # rows per sparse retrieval batch
+TFIDF_BATCH_SIZE         = 20_000  # rows per sparse retrieval batch (larger = faster)
 
 # ---------------------------------------------------------------------------
 # BGE-M3

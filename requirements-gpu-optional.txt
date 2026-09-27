@@ -1,0 +1,21 @@
+# ============================================================
+# GPU extras — install AFTER requirements.txt
+# These require special installers and should NOT be mixed
+# into the main pip install.
+# ============================================================
+
+# FAISS GPU (Linux only — replaces faiss-cpu for ANN speed)
+# pip install faiss-gpu>=1.7.4
+
+# RAPIDS cuDF (DO NOT install via plain pip — use the RAPIDS installer)
+# Official RAPIDS pip installer (CUDA 12.x):
+#   pip install --extra-index-url=https://pypi.nvidia.com cudf-cu12==24.10.*
+#
+# Or use conda (recommended):
+#   conda install -c rapidsai -c conda-forge cudf=24.10 python=3.11 cuda-version=12.0
+#
+# See: https://docs.rapids.ai/install
+
+# NOTE: cudf-cu12 is OPTIONAL. The pipeline runs on CPU pandas without it.
+# Do NOT add cudf-cu12 to requirements.txt — it causes pip resolver backtracking
+# through hundreds of numba versions and can take 30+ minutes to "install".
