@@ -60,6 +60,9 @@ def build_features(cand, s1, other):
     F["addralpha_tset"] = _cp(xa, xb, fuzz.token_set_ratio)
     F["addralpha_tsort"] = _cp(xa, xb, fuzz.token_sort_ratio)
 
+    ya, yb = g(s1, "addr_skel", i1), g(other, "addr_skel", i2)
+    F["addrskel_tset"] = _cp(ya, yb, fuzz.token_set_ratio)
+
     ma, mb = g(s1, "nums", i1), g(other, "nums", i2)
     F["nums_tset"] = _cp(ma, mb, fuzz.token_set_ratio)
     F["nums_tsort"] = _cp(ma, mb, fuzz.token_sort_ratio)

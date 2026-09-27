@@ -87,6 +87,18 @@ IN_STATES = {
     "tamil nadu": "tn", "tamilnadu": "tn", "telangana": "ts", "tripura": "tr",
     "uttar pradesh": "up", "uttarakhand": "uk", "west bengal": "wb", "delhi": "dl",
     "jammu and kashmir": "jk", "puducherry": "py", "pondicherry": "py", "chandigarh": "ch",
+    "keralam": "kl",
+    # anyascii transliterations of native-script state names (Devanagari, Gujarati,
+    # Kannada, Tamil, Telugu, Bengali, Malayalam, Gurmukhi, Odia)
+    "mharastr": "mh", "mharastra": "mh", "dilli": "dl", "hriyana": "hr", "uttr prdes": "up",
+    "rajsthan": "rj", "gujrat": "gj", "krnatk": "ka", "tmilnadu": "tn", "tmilnatu": "tn",
+    "telmgan": "ts", "telmgana": "ts", "pscimbng": "wb", "pscim bmgal": "wb", "kerlm": "kl",
+    "kerl": "kl", "mdhy prdes": "mp", "amdhrprdes": "ap", "pmjab": "pb", "odisa": "od",
+    "od isa": "od",
+    # big-city transliterations -> English spelling
+    "mumbi": "mumbai", "bemgluru": "bangalore", "bengaluru": "bangalore", "cenni": "chennai",
+    "cennai": "chennai", "haidrabad": "hyderabad", "kolkta": "kolkata", "ni dilli": "new dl",
+    "gurugram": "gurgaon", "bombay": "mumbai", "madras": "chennai", "calcutta": "kolkata",
 }
 STATES = {**US_STATES, **IN_STATES}
 STATE_RE = re.compile(r"\b(" + "|".join(sorted(STATES, key=len, reverse=True)) + r")\b")
@@ -143,8 +155,11 @@ def _fix_leet(t):
     return t.replace("1", "l").replace("0", "o") if RE_LEET.match(t) and len(t) > 1 else t
 
 
+RE_PRA_LI = re.compile(r"\bpra li\b")  # Hindi abbreviation of "private limited"
+
+
 def norm_name(raw):
-    s = base_clean(raw)
+    s = RE_PRA_LI.sub("private limited", base_clean(raw))
     toks = []
     for t in s.split():
         t = _fix_leet(t)
@@ -190,7 +205,7 @@ SKEL_TABLE = str.maketrans({"a": None, "e": None, "i": None, "o": None, "u": Non
 
 
 NORM_COLS = ["name_n", "core", "addr_n", "core_skel", "core_cat_skel", "nums", "addr_alpha",
-             "nonlatin", "country"]
+             "addr_skel", "nonlatin", "country"]
 
 
 def _norm_chunk(df):
@@ -225,6 +240,7 @@ def normalize_df(df, workers=1):
     df["nums"] = [" ".join(RE_NUM.findall(a)) for a in df["addr_n"].values]
     df["addr_alpha"] = [" ".join(t for t in a.split() if not t.isdigit() and t not in ADDR_STOP
                                  and len(t) > 1) for a in df["addr_n"].values]
+    df["addr_skel"] = [" ".join(skeleton(t) for t in a.split()) for a in df["addr_alpha"].values]
     df["nonlatin"] = np.array([any(ord(c) > 127 for c in x) for x in df["business_name"].values],
                               dtype=np.int8)
     df["country"] = df["country"].str.strip().str.lower()
