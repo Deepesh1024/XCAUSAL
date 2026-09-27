@@ -287,7 +287,7 @@ class DatasetProfiler:
         grouped = res.groupby('entity_id_x')['entity_id_y'].apply(set).to_dict()
         for s1_id, trues in gt_dict.items():
             if not trues: continue
-            preds = grouped.get(s1_id, set())
+            preds = set(grouped.get(s1_id, set()))
             recalled += len(trues & preds)
             
         strategies.append({
