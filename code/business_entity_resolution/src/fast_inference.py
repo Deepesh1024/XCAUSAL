@@ -139,30 +139,63 @@ def main():
     log.info(f"[{get_elapsed():.1f}m] Normalization complete.")
 
     # 3. Candidate Generation (Blocked by Country)
-    log.info(f"[{get_elapsed():.1f}m] Generating exact match candidates via merge...")
+    log.info(f"[{get_elapsed():.1f}m] Building truncated exact match indexes...")
     
-    # We must limit matches to avoid exploding joins on empty/generic strings
-    s1_valid_name = s1[s1.name_norm != ""][["entity_id", "name_norm", "country_norm"]]
-    s23_valid_name = s23[s23.name_norm != ""][["entity_id", "name_norm", "country_norm"]]
-    cands_name = s1_valid_name.merge(s23_valid_name, on=["name_norm", "country_norm"])
-    cands_name = cands_name.groupby("entity_id_x").head(10)[["entity_id_x", "entity_id_y"]]
-
-    s1_valid_core = s1[s1.name_core != ""][["entity_id", "name_core", "country_norm"]]
-    s23_valid_core = s23[s23.name_core != ""][["entity_id", "name_core", "country_norm"]]
-    cands_core = s1_valid_core.merge(s23_valid_core, on=["name_core", "country_norm"])
-    cands_core = cands_core.groupby("entity_id_x").head(10)[["entity_id_x", "entity_id_y"]]
-
-    s1_valid_num = s1[s1.address_numbers != ""][["entity_id", "address_numbers", "country_norm"]]
-    s23_valid_num = s23[s23.address_numbers != ""][["entity_id", "address_numbers", "country_norm"]]
-    cands_num = s1_valid_num.merge(s23_valid_num, on=["address_numbers", "country_norm"])
-    cands_num = cands_num.groupby("entity_id_x").head(5)[["entity_id_x", "entity_id_y"]]
-
-    # Combine exact candidates
-    exact_cands = pd.concat([cands_name, cands_core, cands_num], ignore_index=True)
-    exact_cands.columns = ["source1_entity_id", "candidate_entity_id"]
-    exact_cands = exact_cands.drop_duplicates()
+    # Cartesian merges OOM on highly generic names (e.g. 10k S1 "llc" * 50k S23 "llc" = 500M rows)
+    # We use a strict bounded python dictionary to prevent ANY Cartesian explosion.
+    name_idx = {}
+    core_idx = {}
+    num_idx = {}
     
-    del cands_name, cands_core, cands_num, s1_valid_name, s23_valid_name, s1_valid_core, s23_valid_core, s1_valid_num, s23_valid_num
+    # Extract only needed cols for speed
+    s23_sub = s23[["entity_id", "name_norm", "name_core", "address_numbers", "country_norm"]]
+    for row in s23_sub.itertuples(index=False):
+        c = row.country_norm
+        e = row.entity_id
+        
+        if row.name_norm:
+            k1 = (c, row.name_norm)
+            l1 = name_idx.setdefault(k1, [])
+            if len(l1) < 10: l1.append(e)
+                
+        if row.name_core:
+            k2 = (c, row.name_core)
+            l2 = core_idx.setdefault(k2, [])
+            if len(l2) < 10: l2.append(e)
+                
+        if row.address_numbers:
+            k3 = (c, row.address_numbers)
+            l3 = num_idx.setdefault(k3, [])
+            if len(l3) < 5: l3.append(e)
+            
+    del s23_sub
+    gc.collect()
+
+    log.info(f"[{get_elapsed():.1f}m] Searching exact match indexes...")
+    exact_cands = set()
+    s1_sub = s1[["entity_id", "name_norm", "name_core", "address_numbers", "country_norm"]]
+    
+    for row in s1_sub.itertuples(index=False):
+        c = row.country_norm
+        e1 = row.entity_id
+        
+        if row.name_norm:
+            for e2 in name_idx.get((c, row.name_norm), []):
+                exact_cands.add((e1, e2))
+                
+        if row.name_core:
+            for e2 in core_idx.get((c, row.name_core), []):
+                exact_cands.add((e1, e2))
+                
+        if row.address_numbers:
+            for e2 in num_idx.get((c, row.address_numbers), []):
+                exact_cands.add((e1, e2))
+                
+    del name_idx, core_idx, num_idx, s1_sub
+    gc.collect()
+
+    exact_df = pd.DataFrame(list(exact_cands), columns=["source1_entity_id", "candidate_entity_id"])
+    del exact_cands
     gc.collect()
 
     log.info(f"[{get_elapsed():.1f}m] Generating TF-IDF candidates...")
