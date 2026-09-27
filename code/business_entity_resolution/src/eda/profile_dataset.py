@@ -361,9 +361,13 @@ class DatasetProfiler:
             f.write("- **GPU embeddings**: Given the scale (10M records) and domain (business names/addresses), dense GPU embeddings like SentenceTransformers are highly justified for recall, but likely need fine-tuning with hard negatives to avoid generic matches.\n")
 
 if __name__ == '__main__':
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_data = os.path.join(script_dir, '../../../../dataset/train')
+    default_out = os.path.join(script_dir, '../../../../artifacts/eda')
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-root', required=True)
-    parser.add_argument('--output-dir', required=True)
+    parser.add_argument('--data-root', default=default_data)
+    parser.add_argument('--output-dir', default=default_out)
     args = parser.parse_args()
     
     profiler = DatasetProfiler(args.data_root, args.output_dir)
