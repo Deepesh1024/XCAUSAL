@@ -139,80 +139,88 @@ def main():
     log.info(f"[{get_elapsed():.1f}m] Normalization complete.")
 
     # 3. Candidate Generation (Blocked by Country)
-    log.info(f"[{get_elapsed():.1f}m] Generating candidates...")
-    candidates = defaultdict(set) # s1_id -> set(s23_ids)
+    log.info(f"[{get_elapsed():.1f}m] Generating exact match candidates via merge...")
     
-    s23_by_country = dict(tuple(s23.groupby("country_norm")))
-    s1_by_country = dict(tuple(s1.groupby("country_norm")))
+    # We must limit matches to avoid exploding joins on empty/generic strings
+    s1_valid_name = s1[s1.name_norm != ""][["entity_id", "name_norm", "country_norm"]]
+    s23_valid_name = s23[s23.name_norm != ""][["entity_id", "name_norm", "country_norm"]]
+    cands_name = s1_valid_name.merge(s23_valid_name, on=["name_norm", "country_norm"])
+    cands_name = cands_name.groupby("entity_id_x").head(10)[["entity_id_x", "entity_id_y"]]
+
+    s1_valid_core = s1[s1.name_core != ""][["entity_id", "name_core", "country_norm"]]
+    s23_valid_core = s23[s23.name_core != ""][["entity_id", "name_core", "country_norm"]]
+    cands_core = s1_valid_core.merge(s23_valid_core, on=["name_core", "country_norm"])
+    cands_core = cands_core.groupby("entity_id_x").head(10)[["entity_id_x", "entity_id_y"]]
+
+    s1_valid_num = s1[s1.address_numbers != ""][["entity_id", "address_numbers", "country_norm"]]
+    s23_valid_num = s23[s23.address_numbers != ""][["entity_id", "address_numbers", "country_norm"]]
+    cands_num = s1_valid_num.merge(s23_valid_num, on=["address_numbers", "country_norm"])
+    cands_num = cands_num.groupby("entity_id_x").head(5)[["entity_id_x", "entity_id_y"]]
+
+    # Combine exact candidates
+    exact_cands = pd.concat([cands_name, cands_core, cands_num], ignore_index=True)
+    exact_cands.columns = ["source1_entity_id", "candidate_entity_id"]
+    exact_cands = exact_cands.drop_duplicates()
     
-    s1_ids = s1["entity_id"].values
+    del cands_name, cands_core, cands_num, s1_valid_name, s23_valid_name, s1_valid_core, s23_valid_core, s1_valid_num, s23_valid_num
+    gc.collect()
+
+    log.info(f"[{get_elapsed():.1f}m] Generating TF-IDF candidates...")
+    tfidf_records = []
+    unique_countries = s1["country_norm"].unique()
     
-    for country, s1_grp in s1_by_country.items():
-        if country not in s23_by_country:
+    for country in unique_countries:
+        s1_grp = s1[s1["country_norm"] == country]
+        s23_grp = s23[s23["country_norm"] == country]
+        if len(s23_grp) == 0:
             continue
-        s23_grp = s23_by_country[country]
-        
-        # A. Exact Name
-        s23_name_idx = s23_grp.groupby("name_norm")["entity_id"].apply(list).to_dict()
-        for row in s1_grp.itertuples():
-            if row.name_norm and row.name_norm in s23_name_idx:
-                candidates[row.entity_id].update(s23_name_idx[row.name_norm][:10])
+            
+        vec = TfidfVectorizer(analyzer='word', ngram_range=(1, 2), max_features=50_000)
+        try:
+            s23_vecs = vec.fit_transform(s23_grp["name_norm"])
+            s1_vecs = vec.transform(s1_grp["name_norm"])
+            s23_grp_ids = s23_grp["entity_id"].values
+            s1_grp_ids = s1_grp["entity_id"].values
+            
+            batch_size = 2000
+            for i in range(0, s1_vecs.shape[0], batch_size):
+                chunk = s1_vecs[i:i+batch_size]
+                sim = chunk.dot(s23_vecs.T)
                 
-        # B. Exact Name Core
-        s23_core_idx = s23_grp.groupby("name_core")["entity_id"].apply(list).to_dict()
-        for row in s1_grp.itertuples():
-            if row.name_core and row.name_core in s23_core_idx:
-                candidates[row.entity_id].update(s23_core_idx[row.name_core][:10])
-                
-        # C. Address Numbers
-        s23_num_idx = s23_grp[s23_grp["address_numbers"] != ""].groupby("address_numbers")["entity_id"].apply(list).to_dict()
-        for row in s1_grp.itertuples():
-            if row.address_numbers and row.address_numbers in s23_num_idx:
-                candidates[row.entity_id].update(s23_num_idx[row.address_numbers][:5])
-        
-        # D. TF-IDF Name similarity (Word level)
-        if len(s23_grp) > 0 and len(s1_grp) > 0:
-            vec = TfidfVectorizer(analyzer='word', ngram_range=(1, 2), max_features=100_000)
-            try:
-                s23_vecs = vec.fit_transform(s23_grp["name_norm"])
-                s1_vecs = vec.transform(s1_grp["name_norm"])
-                s23_grp_ids = s23_grp["entity_id"].values
-                s1_grp_ids = s1_grp["entity_id"].values
-                
-                batch_size = 2000
-                for i in range(0, s1_vecs.shape[0], batch_size):
-                    chunk = s1_vecs[i:i+batch_size]
-                    sim = chunk.dot(s23_vecs.T)
-                    
-                    for j in range(chunk.shape[0]):
-                        row_sim = sim.getrow(j)
-                        if row_sim.nnz > 0:
-                            data = row_sim.data
-                            indices = row_sim.indices
-                            if len(data) > 30:
-                                top_k = np.argpartition(data, -30)[-30:]
-                                top_indices = indices[top_k]
-                            else:
-                                top_indices = indices
-                            
-                            s1_id = s1_grp_ids[i+j]
-                            for idx in top_indices:
-                                candidates[s1_id].add(s23_grp_ids[idx])
-            except Exception as e:
-                log.warning(f"TF-IDF failed for country '{country}': {e}")
-                
+                for j in range(chunk.shape[0]):
+                    row_sim = sim.getrow(j)
+                    if row_sim.nnz > 0:
+                        data = row_sim.data
+                        indices = row_sim.indices
+                        if len(data) > 30:
+                            top_k = np.argpartition(data, -30)[-30:]
+                            top_indices = indices[top_k]
+                        else:
+                            top_indices = indices
+                        
+                        s1_id = s1_grp_ids[i+j]
+                        for idx in top_indices:
+                            tfidf_records.append({"source1_entity_id": s1_id, "candidate_entity_id": s23_grp_ids[idx]})
+        except Exception as e:
+            log.warning(f"TF-IDF failed for country '{country}': {e}")
+            
     log.info(f"[{get_elapsed():.1f}m] Candidate generation complete.")
     
     # 4. Limit to top 50 candidates per S1 and build dataframe
-    cand_records = []
-    for s1_id in s1_ids:
-        cands = list(candidates.get(s1_id, []))
-        # Keep up to 50
-        cands = cands[:50]
-        for c in cands:
-            cand_records.append({"source1_entity_id": s1_id, "candidate_entity_id": c})
+    if len(tfidf_records) > 0:
+        tfidf_cands = pd.DataFrame(tfidf_records)
+        cand_df = pd.concat([exact_cands, tfidf_cands], ignore_index=True)
+        del tfidf_records, tfidf_cands
+    else:
+        cand_df = exact_cands
+        del tfidf_records
+        
+    cand_df = cand_df.drop_duplicates()
+    cand_df = cand_df.groupby("source1_entity_id").head(50).reset_index(drop=True)
+    del exact_cands
+    gc.collect()
     
-    cand_df = pd.DataFrame(cand_records)
+    s1_ids = s1["entity_id"].values
     log.info(f"[{get_elapsed():.1f}m] Total candidate pairs to score: {len(cand_df):,}")
 
     # Write candidate_pairs.tsv early
