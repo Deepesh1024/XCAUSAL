@@ -217,6 +217,10 @@ def main():
             
             batch_size = 2000
             for i in range(0, s1_vecs.shape[0], batch_size):
+                if get_elapsed() > 40.0:
+                    log.warning("Time limit approaching! Breaking TF-IDF loop early.")
+                    break
+                    
                 chunk = s1_vecs[i:i+batch_size]
                 sim = chunk.dot(s23_vecs.T)
                 
