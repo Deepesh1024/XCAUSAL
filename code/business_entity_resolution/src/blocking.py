@@ -20,11 +20,11 @@ from rapidfuzz.process import cpdist
 
 CONFIGS = {
     # normal: best recall
-    "full": dict(cap_A=400, cap_B=2000, cap_C=400, cap_D=2000, n_nums=2, n_addr_tok=3,
-                 pre_k=60, top_k=25, families="ABCD"),
+    "full": dict(cap_A=400, cap_B=2000, cap_C=400, cap_D=2000, cap_E=400, cap_F=1000,
+                 n_nums=2, n_addr_tok=3, pre_k=60, top_k=25, families="ABCDEF"),
     # fast fallback: fewer keys, tighter caps, smaller top-k
-    "fast": dict(cap_A=150, cap_B=800, cap_C=150, cap_D=800, n_nums=1, n_addr_tok=2,
-                 pre_k=30, top_k=12, families="ABD"),
+    "fast": dict(cap_A=150, cap_B=800, cap_C=150, cap_D=800, cap_E=150, cap_F=300,
+                 n_nums=1, n_addr_tok=2, pre_k=30, top_k=12, families="ABDEF"),
 }
 
 
@@ -78,7 +78,23 @@ def keys_B(df, cfg):
 
 def keys_C(df, cfg):
     for c, s in zip(df["country"].values, df["core_cat_skel"].values):
-        yield [f"C{c}|{s[:7]}"] if len(s) >= 4 else []
+        yield [f"C{c}|{s[:7]}", f"c{c}|{s[:12]}"] if len(s) >= 4 else []
+
+
+def keys_E(df, cfg):
+    """whole name skeleton, word order ignored (transpositions, translit.)"""
+    for c, sk in zip(df["country"].values, df["core_skel"].values):
+        toks = sorted(t for t in sk.split() if t)
+        yield [f"E{c}|{' '.join(toks)}"] if toks else []
+
+
+def keys_F(df, cfg):
+    """name skeleton token + address word: number-free (numbers get truncated)"""
+    m = cfg["n_addr_tok"]
+    for c, sk, aa in zip(df["country"].values, df["core_skel"].values, df["addr_alpha"].values):
+        toks = {t for t in sk.split() if len(t) > 1}
+        ws = aa.split()[:m]
+        yield [f"F{c}|{t}|{w}" for t in toks for w in ws]
 
 
 def keys_D(df, cfg):
@@ -89,7 +105,7 @@ def keys_D(df, cfg):
         yield [f"D{c}|{x}|{t}" for x in ns for t in ts]
 
 
-KEYFN = {"A": keys_A, "B": keys_B, "C": keys_C, "D": keys_D}
+KEYFN = {"A": keys_A, "B": keys_B, "C": keys_C, "D": keys_D, "E": keys_E, "F": keys_F}
 
 
 def generate_candidates(s1, other, mode="full", verbose=True):

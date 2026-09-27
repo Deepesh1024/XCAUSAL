@@ -135,10 +135,21 @@ def words_to_numbers(tokens):
     return out
 
 
+RE_LEET = re.compile(r"^(?=.*[a-z])[a-z01]+$")
+
+
+def _fix_leet(t):
+    """'fami1y' -> 'family', 'a1' -> 'al' (digit-for-letter typos inside words)."""
+    return t.replace("1", "l").replace("0", "o") if RE_LEET.match(t) and len(t) > 1 else t
+
+
 def norm_name(raw):
     s = base_clean(raw)
     toks = []
     for t in s.split():
+        t = _fix_leet(t)
+        if len(t) > 7 and t.endswith("com"):  # "internationalimpexcom"
+            t = t[:-3]
         toks.extend(NAME_ABBR.get(t, t).split())
     # collapse immediate repeats ("inc inc")
     dedup = [t for i, t in enumerate(toks) if i == 0 or t != toks[i - 1]]
@@ -146,7 +157,8 @@ def norm_name(raw):
 
 
 def core_name(name_norm):
-    toks = [t for t in name_norm.split() if t not in LEGAL]
+    toks = [t for t in name_norm.split()
+            if t not in LEGAL and not (len(t) > 4 and skeleton(t) in LEGAL_SKEL)]
     return " ".join(toks) if toks else name_norm
 
 
@@ -183,6 +195,11 @@ NORM_COLS = ["name_n", "core", "addr_n", "core_skel", "core_cat_skel", "nums", "
 
 def _norm_chunk(df):
     return normalize_df(df, workers=1)[NORM_COLS]
+
+
+# skeletons of long legal words: catches transliterated/typo forms
+# ("praivet", "pravtae", "limitedd", "incorparated")
+LEGAL_SKEL = {"prbt", "lntd", "nkrprtd", "krprtn", "knpn", "prbtlntd", "krp"}
 
 
 def normalize_df(df, workers=1):
