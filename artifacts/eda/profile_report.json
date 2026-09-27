@@ -1,0 +1,273 @@
+{
+    "dataset_sizes": {
+        "S1_records": 2206821,
+        "S2_records": 5034616,
+        "S3_records": 5285603,
+        "S1_unique_ids": 2206821,
+        "S2_unique_ids": 5034616,
+        "S3_unique_ids": 5285603,
+        "S1_countries": {
+            "US": 1323633,
+            "India": 883188
+        },
+        "S2_countries": {
+            "US": 3016817,
+            "India": 2017799
+        },
+        "S3_countries": {
+            "US": 3170056,
+            "India": 2115547
+        },
+        "country_intersection_S1_S2": 2,
+        "country_intersection_S1_S3": 2,
+        "country_intersection_all": 2
+    },
+    "missingness": {
+        "S1": {
+            "missing_name": 0,
+            "empty_name": 0,
+            "missing_address": 0,
+            "empty_address": 0,
+            "missing_country": 0,
+            "name_len_mean": 24.03440333402664,
+            "addr_len_mean": 52.06621289175697
+        },
+        "S2": {
+            "missing_name": 3,
+            "empty_name": 3,
+            "missing_address": 168967,
+            "empty_address": 168967,
+            "missing_country": 0,
+            "name_len_mean": 25.103573539670155,
+            "addr_len_mean": 46.22590858965212
+        },
+        "S3": {
+            "missing_name": 15,
+            "empty_name": 15,
+            "missing_address": 175916,
+            "empty_address": 175916,
+            "missing_country": 0,
+            "name_len_mean": 25.202137769333035,
+            "addr_len_mean": 46.71443731207206
+        }
+    },
+    "name_characteristics": {
+        "S1": {
+            "mean_char_len": 24.07319,
+            "mean_token_count": 3.55436,
+            "pct_digits": 1.654,
+            "pct_punctuation": 20.977,
+            "pct_legal_suffixes": 60.050000000000004,
+            "pct_urls": 0.0,
+            "pct_dba": 0.0,
+            "pct_non_ascii": 0.0,
+            "common_tokens": {
+                "limited": 23736,
+                "private": 19573,
+                "llc": 16089,
+                "inc": 10737,
+                "ltd": 6777,
+                "pvt": 5514,
+                "india": 2832,
+                "and": 2639,
+                "c": 2557,
+                "s": 2496,
+                "care": 2434,
+                "l": 2343,
+                "of": 2033,
+                "associates": 1966,
+                "llp": 1815,
+                "group": 1731,
+                "partners": 1633,
+                "center": 1613,
+                "corp": 1601,
+                "services": 1473
+            }
+        },
+        "S2": {
+            "mean_char_len": 25.07106,
+            "mean_token_count": 3.49398,
+            "pct_digits": 5.220000000000001,
+            "pct_punctuation": 42.729,
+            "pct_legal_suffixes": 45.548,
+            "pct_urls": 0.306,
+            "pct_dba": 0.0,
+            "pct_non_ascii": 0.0,
+            "common_tokens": {
+                "\u091f": 10741,
+                "limited": 10646,
+                "private": 10582,
+                "llc": 10553,
+                "inc": 8066,
+                "ltd": 7920,
+                "\u0930": 6767,
+                "\u0932": 6133,
+                "\u0921": 5257,
+                "\u092e": 5045,
+                "\u092a": 4873,
+                "\u0938": 4640,
+                "com": 4037,
+                "center": 3814,
+                "pvt": 3813,
+                "l": 3435,
+                "\u0907\u0935": 3185,
+                "partners": 3091,
+                "corp": 2918,
+                "services": 2896
+            }
+        },
+        "S3": {
+            "mean_char_len": 25.20173,
+            "mean_token_count": 3.52564,
+            "pct_digits": 5.125,
+            "pct_punctuation": 39.786,
+            "pct_legal_suffixes": 48.271,
+            "pct_urls": 0.327,
+            "pct_dba": 0.621,
+            "pct_non_ascii": 0.0,
+            "common_tokens": {
+                "limited": 13019,
+                "private": 12378,
+                "llc": 10913,
+                "ltd": 8228,
+                "inc": 7954,
+                "\u091f": 5459,
+                "pvt": 4310,
+                "center": 4183,
+                "com": 3991,
+                "\u0930": 3480,
+                "l": 3222,
+                "partners": 3200,
+                "services": 3187,
+                "\u0932": 3163,
+                "group": 2800,
+                "s": 2769,
+                "co": 2722,
+                "corp": 2718,
+                "\u0921": 2659,
+                "\u092e": 2554
+            }
+        }
+    },
+    "address_characteristics": {
+        "S1": {
+            "mean_char_len": 52.24205,
+            "pct_digits": 96.476,
+            "pct_postal_like": 6.574000000000001,
+            "pct_non_ascii": 0.0,
+            "pct_empty": 0.0,
+            "common_tokens": {
+                "road": 21335,
+                "no": 20437,
+                "delhi": 14529,
+                "street": 13789,
+                "drive": 10089,
+                "unit": 9447,
+                "maharashtra": 8891,
+                "avenue": 8683,
+                "nagar": 7618,
+                "floor": 7477,
+                "city": 6770,
+                "1": 6435,
+                "west": 6183,
+                "tx": 5950,
+                "mumbai": 5939,
+                "new": 5297,
+                "pradesh": 5296,
+                "lane": 4890,
+                "c": 4833,
+                "ny": 4627
+            }
+        },
+        "S2": {
+            "mean_char_len": 46.2362,
+            "pct_digits": 90.607,
+            "pct_postal_like": 7.3,
+            "pct_non_ascii": 0.0,
+            "pct_empty": 3.319,
+            "common_tokens": {
+                "no": 22272,
+                "road": 13461,
+                "delhi": 9962,
+                "st": 6681,
+                "street": 6666,
+                "rd": 6617,
+                "floor": 6396,
+                "maharashtra": 6349,
+                "1": 6050,
+                "city": 6011,
+                "nagar": 5974,
+                "tx": 5787,
+                "dr": 5665,
+                "a": 5374,
+                "c": 5288,
+                "\u0930": 4896,
+                "2": 4720,
+                "ny": 4431,
+                "ave": 4393,
+                "new": 4382
+            }
+        },
+        "S3": {
+            "mean_char_len": 46.71552,
+            "pct_digits": 90.714,
+            "pct_postal_like": 7.260999999999999,
+            "pct_non_ascii": 0.0,
+            "pct_empty": 3.424,
+            "common_tokens": {
+                "no": 20223,
+                "road": 11827,
+                "new": 9086,
+                "delhi": 8395,
+                "street": 6855,
+                "city": 6713,
+                "1": 6338,
+                "st": 6219,
+                "mh": 6200,
+                "north": 6162,
+                "rd": 6159,
+                "texas": 5522,
+                "nagar": 5443,
+                "dr": 5348,
+                "floor": 5332,
+                "a": 5230,
+                "mumbai": 5174,
+                "c": 5030,
+                "2": 4747,
+                "drive": 4537
+            }
+        }
+    },
+    "gt_cardinality": {
+        "pct_zero_match": 5.584820880352326,
+        "pct_one_match": 5.399486410542586,
+        "pct_multi_match": 89.01569270910508,
+        "mean_matches": 3.4612526344456573,
+        "median_matches": 3.0,
+        "p95_matches": 6.0,
+        "pct_s2_only": 6.481223443133811,
+        "pct_s3_only": 7.454070810455401,
+        "pct_both_s2_s3": 80.47988486605846
+    },
+    "gt_difficulty": {
+        "pct_exact_name": 22.743862806859656,
+        "pct_exact_addr": 8.289585520723964,
+        "pct_exact_country": 100.0,
+        "mean_name_token_jaccard": 0.6200964365276737,
+        "mean_addr_token_jaccard": 0.5935563781622903,
+        "mean_name_char_jaccard": 0.6766448038840411,
+        "mean_name_len_ratio": 0.8686214908507395,
+        "mean_addr_len_ratio": 0.814454066419041
+    },
+    "hard_negatives": {
+        "note": "Full hard negative mining requires full blocking. Based on GT difficulty, F0.5 will penalize heavily if we over-merge generic names.",
+        "recommendation": "Require both high name similarity and at least moderate address similarity, or use an ML model (like XGBoost or bi-encoder) to learn the precise trade-off. Duplicate/generic names (e.g. \"Christ Chapel\") often belong to different entities across cities."
+    },
+    "blocking_experiment": [
+        {
+            "strategy": "A. Exact Name",
+            "avg_candidates": 4.4118,
+            "recall": 0.2113386583388385
+        }
+    ]
+}
